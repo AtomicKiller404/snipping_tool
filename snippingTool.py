@@ -40,6 +40,7 @@ class SnippingTool:
         canvas.pack(fill=tk.BOTH, expand=True)
 
         self.overlay.bind("<Return>", self.close_all)
+        self.overlay.bind("<Key>", self.close_all)
 
         def start_draw(event):
             """Start drawning a new rectangle"""
@@ -100,10 +101,16 @@ class SnippingTool:
 
     def close_all(self, event):
         """Close all overlay windows and take a screenshot"""
-        if self.overlay:
-            self.overlay.destroy()
-        self.take_screenshot()
-        self.root.quit()
+        if event.keysym == "Escape":
+            if self.overlay:
+                self.overlay.destroy()
+            self.root.quit()
+
+        elif event.keysym == "Return": 
+            if self.overlay:
+                self.overlay.destroy()
+            self.take_screenshot()
+            self.root.quit()
 
     def get_pictures_folder(self):
         # Get the path to the Pictures folder across platforms

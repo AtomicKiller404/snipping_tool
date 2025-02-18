@@ -2,12 +2,13 @@ import keyboard
 from snippingTool import SnippingTool
 
 def snippingTool():
+    # Create and start the SnippingTool instance
     snipping_tool = SnippingTool()
 
-# Set up the hotkey listener
+# Set up the hotkey listener for starting the SnippingTool
 keyboard.add_hotkey("shift+alt+s", snippingTool)
 
-print("Listening for Shift + Alt + S... Press Shift + Alt + ESC to stop.")
+print("Listening for Shift + Alt + S to start snipping... Press Shift + Alt + Q to stop.")
 
 # Keep the script running in the background
-keyboard.wait("shift+alt+esc")  # Press shift+alt+esc to stop the script
+keyboard.wait("shift+alt+q")  # Wait indefinitely for the hotkeys

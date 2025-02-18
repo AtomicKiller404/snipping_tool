@@ -1,3 +1,5 @@
+import os
+import sys
 import time
 import keyboard
 from pystray import Icon, MenuItem, Menu
@@ -6,6 +8,14 @@ from snippingTool import SnippingTool
 import threading
 
 quit_flag = False  # Use a global flag to control the quit state
+
+# Check if the script is running as a .exe or as a script
+if getattr(sys, 'frozen', False):
+    # If it's a bundled exe, use sys._MEIPASS to find the bundled files
+    icon_path = os.path.join(sys._MEIPASS, "cut-scissor-icon.ico")
+else:
+    # If running as a script, assume the icon is in the current directory
+    icon_path = "cut-scissor-icon.ico"
 
 def on_quit(icon, item):
     global quit_flag 
@@ -27,7 +37,7 @@ def start_hotkeys():
 
 menu = Menu(MenuItem('Quit', on_quit))
 # icon = Icon("cut-scissor-icon.ico", create_image(), menu=menu)
-icon = Icon("SnippingTool", Image.open("cut-scissor-icon.ico"), menu=menu)
+icon = Icon("SnippingTool", Image.open(icon_path), menu=menu)
 
 # Run the system tray icon in the background
 tray_thread = threading.Thread(target=icon.run)

@@ -2,6 +2,8 @@ import tkinter as tk
 import mss.tools
 from screeninfo import get_monitors
 from datetime import datetime
+import os
+from pathlib import Path
 
 class SnippingTool:
     def __init__(self):
@@ -103,6 +105,18 @@ class SnippingTool:
         self.take_screenshot()
         self.root.quit()
 
+    def get_pictures_folder(self):
+        # Get the path to the Pictures folder across platforms
+        if os.name == 'nt':  # For Windows
+            pictures_folder = Path(os.environ['USERPROFILE']) / 'Pictures' / 'SnippingTool'
+        else:  # For macOS and Linux
+            pictures_folder = Path(os.path.expanduser('~')) / 'Pictures' / 'SnippingTool'
+
+        # Check if the folder exists, and create it if not
+        pictures_folder.mkdir(parents=True, exist_ok=True)
+
+        return pictures_folder
+
     def take_screenshot(self):
         """Captures the selected screen area and saves the image."""
         if not self.coords or len(self.coords) < 4:
@@ -129,7 +143,7 @@ class SnippingTool:
         with mss.mss() as sct:
             monitor = {"top": int(y1), "left": int(x1), "width": int(x2 - x1), "height": int(y2 - y1)}
             now = datetime.now()               
-            output = f"screenshot_{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}.png"
+            output = self.get_pictures_folder() / f"screenshot_{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}.png"
             sct_img = sct.grab(monitor)
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
             print(f"Screenshot saved: {output}")

@@ -1,16 +1,33 @@
 import tkinter as tk
+from tkinter import messagebox
 import mss.tools
 from screeninfo import get_monitors
 from datetime import datetime
 import os
 from pathlib import Path
+from enum import Enum
+
+class State(Enum):
+    SUCCESS = "Success"
+    ERROR = "Error"
+    WARNING = "Warning"
 
 class SnippingTool:
     def __init__(self):
         self.root = tk.Tk()
         self.root.withdraw()
 
-        self.monitors = get_monitors()  # Store monitor info
+        self.popup_mapping = { # Maps the functions to each state, which simplifies the conditional logic
+            State.SUCCESS: messagebox.showinfo,
+            State.ERROR: messagebox.showerror,
+            State.WARNING: messagebox.showwarning,
+        }
+
+        try:
+            self.monitors = get_monitors()  # Store monitor info
+        except Exception as e:
+            self.show_popup(State.ERROR, f"Error detecting monitors: {e}")
+
         self.start_x = self.start_y = self.end_x = self.end_y = 0 
         self.resizing = False
         self.created = False
@@ -27,6 +44,11 @@ class SnippingTool:
 
         self.root.mainloop()
 
+    def show_popup(self, state, msg):
+        popup_func = self.popup_mapping.get(state)
+        if popup_func:
+            popup_func(state.name, msg)
+
     def create_overlay(self, mx, my, mh, mw):
         """Creates a fullscreen overlay"""
         self.overlay = tk.Toplevel(self.root)
@@ -35,6 +57,9 @@ class SnippingTool:
         self.overlay.attributes("-alpha", 0.3)
         self.overlay.config(bg="black")
         self.overlay.overrideredirect(True)
+
+        self.overlay.lift
+        self.overlay.focus_force() # Forces the overlay to tak focuse
 
         canvas = tk.Canvas(self.overlay, bg="black", highlightthickness=0)
         canvas.pack(fill=tk.BOTH, expand=True)
@@ -113,21 +138,25 @@ class SnippingTool:
             self.root.quit()
 
     def get_pictures_folder(self):
-        # Get the path to the Pictures folder across platforms
-        if os.name == 'nt':  # For Windows
-            pictures_folder = Path(os.environ['USERPROFILE']) / 'Pictures' / 'SnippingTool'
-        else:  # For macOS and Linux
-            pictures_folder = Path(os.path.expanduser('~')) / 'Pictures' / 'SnippingTool'
+        try:
+            # Get the path to the Pictures folder across platforms
+            if os.name == 'nt':  # For Windows
+                pictures_folder = Path(os.environ['USERPROFILE']) / 'Pictures' / 'SnippingTool'
+            else:  # For macOS and Linux
+                pictures_folder = Path(os.path.expanduser('~')) / 'Pictures' / 'SnippingTool'
 
-        # Check if the folder exists, and create it if not
-        pictures_folder.mkdir(parents=True, exist_ok=True)
+            # Check if the folder exists, and create it if not
+            pictures_folder.mkdir(parents=True, exist_ok=True)
 
-        return pictures_folder
+            return pictures_folder
+        except Exception as e:
+            self.show_popup(State.ERROR, f"Error creating the pictures folder: {e}")
+            return None
 
     def take_screenshot(self):
         """Captures the selected screen area and saves the image."""
         if not self.coords or len(self.coords) < 4:
-            print("No valid selection area.")
+            self.show_popup(State.WARNING, "No valid selection area.")
             return
         
         # Get the correct coords of the rectangle
@@ -136,7 +165,7 @@ class SnippingTool:
         x2, y2 = max(sx, ex), max(sy, ey)
 
         if x1 == x2 or y1 == y2:
-            print("Invalid selection: width or height is zero.")
+            self.show_popup(State.WARNING, "Invalid selection: width or height is zero.")
             return
 
         # Adjust to absolute screen coordinates
@@ -147,10 +176,19 @@ class SnippingTool:
         x2 += mx
         y2 += my
 
-        with mss.mss() as sct:
-            monitor = {"top": int(y1), "left": int(x1), "width": int(x2 - x1), "height": int(y2 - y1)}
-            now = datetime.now()               
-            output = self.get_pictures_folder() / f"screenshot_{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}.png"
-            sct_img = sct.grab(monitor)
-            mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
-            print(f"Screenshot saved: {output}")
+        try:
+            with mss.mss() as sct:
+                monitor = {"top": int(y1), "left": int(x1), "width": int(x2 - x1), "height": int(y2 - y1)}
+                now = datetime.now()               
+                output = self.get_pictures_folder() / f"screenshot_{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}.png"
+                sct_img = sct.grab(monitor)
+                mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
+
+                # Check if the file was successfully saved
+                if os.path.exists(output):
+                    self.show_popup(State.SUCCESS, f"Screenshot saved successfully: {output}")
+                else:
+                    self.show_popup(State.ERROR, "Failed to save screenshot.")  
+
+        except Exception as e:
+            self.show_popup(State.ERROR, f"Error occurred: {e}")

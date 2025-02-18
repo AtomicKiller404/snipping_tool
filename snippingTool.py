@@ -1,6 +1,5 @@
 import tkinter as tk
 import mss.tools
-import pyautogui
 from screeninfo import get_monitors
 
 class SnippingTool:
@@ -8,66 +7,54 @@ class SnippingTool:
         self.root = tk.Tk()
         self.root.withdraw()
 
-        self.overlays = []  # Store multiple overlays
-        self.canvases = []  # Store multiple canvases
         self.monitors = get_monitors()  # Store monitor info
-        self.active_monitor = None
-        self.start_x = self.start_y = self.end_x = self.end_y = 0
+        self.start_x = self.start_y = self.end_x = self.end_y = 0 
         self.resizing = False
         self.created = False
-        self.active_rect = None
-        self.coords = []
+        self.active_rect = None # Stores the current active rectangle
+        self.coords = [] # Storing stating coords and ending coords of the mouse/rectangle
         self.resize_handle_size = 10
 
-        mx = min(monitor.x for monitor in get_monitors())
-        my = min(monitor.y for monitor in get_monitors()) 
-        mh = sum(monitor.height for monitor in get_monitors())
-        mw = sum(monitor.width for monitor in get_monitors())
+        monitor_x = min(monitor.x for monitor in get_monitors())
+        monitor_y = min(monitor.y for monitor in get_monitors()) 
+        monitor_height = sum(monitor.height for monitor in get_monitors())
+        monitor_width = sum(monitor.width for monitor in get_monitors())
 
-        self.create_overlay(mx, my, mh, mw)
-
-        # for monitor in self.monitors:
-        #     self.create_overlay(monitor)
+        self.create_overlay(monitor_x, monitor_y, monitor_height, monitor_width)
 
         self.root.mainloop()
 
-    # def create_overlay(self, monitor):
     def create_overlay(self, mx, my, mh, mw):
         """Creates a fullscreen overlay"""
-        overlay = tk.Toplevel(self.root)
-        # overlay.geometry(f"{monitor.width}x{monitor.height}+{monitor.x}+{monitor.y}")
-        overlay.geometry(f"{mw}x{mh}+{mx}+{my}")
-        overlay.attributes("-topmost", True)
-        overlay.attributes("-alpha", 0.3)
-        overlay.config(bg="black")
-        overlay.overrideredirect(True)
+        self.overlay = tk.Toplevel(self.root)
+        self.overlay.geometry(f"{mw}x{mh}+{mx}+{my}")
+        self.overlay.attributes("-topmost", True)
+        self.overlay.attributes("-alpha", 0.3)
+        self.overlay.config(bg="black")
+        self.overlay.overrideredirect(True)
 
-        canvas = tk.Canvas(overlay, bg="black", highlightthickness=0)
+        canvas = tk.Canvas(self.overlay, bg="black", highlightthickness=0)
         canvas.pack(fill=tk.BOTH, expand=True)
 
-        self.overlays.append(overlay)
-        self.canvases.append(canvas)
-
-        overlay.bind("<Return>", self.close_all)
+        self.overlay.bind("<Return>", self.close_all)
 
         def start_draw(event):
             """Start drawning a new rectangle"""
-            rect = None
             self.start_x, self.start_y = event.x, event.y
 
             if not self.created:
-                rect = canvas.create_rectangle(
+                # Create a new rectangle if it doesnt exist
+                self.active_rect = canvas.create_rectangle(
                     self.start_x, self.start_y, 
                     self.start_x, self.start_y,
                     outline="white", width=2,
                     fill="white"
                 )
-                # self.active_monitor = monitor  # Store which monitor is used
-                self.active_rect = rect
                 self.created = True
                 self.coords = [self.start_x, self.start_y, self.start_x, self.start_y]
             else:
-                x1, y1, x2, y2 = canvas.coords(rect)
+                # Check if the mouse is near the boundary of the rectangle (+/- resize_handle_size) 
+                x1, y1, x2, y2 = canvas.coords(self.active_rect)
                 if x1 - self.resize_handle_size <= self.start_x <= x2 + self.resize_handle_size and \
                 y1 - self.resize_handle_size <= self.start_y <= y2 + self.resize_handle_size:
                     self.resizing = True  # Start resizing
@@ -94,7 +81,7 @@ class SnippingTool:
                 self.coords = [x1, y1, x2, y2]
                 canvas.coords(self.active_rect, x1, y1, x2, y2)
 
-            elif self.resizing != True:
+            else:
                 # Draw a new rectangle
                 self.coords = [self.start_x, self.start_y, self.end_x, self.end_y]
                 canvas.coords(self.active_rect, self.start_x, self.start_y, self.end_x, self.end_y)
@@ -110,9 +97,8 @@ class SnippingTool:
 
     def close_all(self, event):
         """Close all overlay windows and take a screenshot"""
-        for overlay in self.overlays:
-            if overlay:
-                overlay.destroy()
+        if self.overlay:
+            self.overlay.destroy()
         self.take_screenshot()
         self.root.quit()
 
@@ -121,10 +107,15 @@ class SnippingTool:
         if not self.coords or len(self.coords) < 4:
             print("No valid selection area.")
             return
-
+        
+        # Get the correct coords of the rectangle
         sx, sy, ex, ey = self.coords
         x1, y1 = min(sx, ex), min(sy, ey)
         x2, y2 = max(sx, ex), max(sy, ey)
+
+        if x1 == x2 or y1 == y2:
+            print("Invalid selection: width or height is zero.")
+            return
 
         # Adjust to absolute screen coordinates
         mx = min(m.x for m in self.monitors)  # Leftmost monitor x
@@ -140,7 +131,6 @@ class SnippingTool:
             sct_img = sct.grab(monitor)
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
             print(f"Screenshot saved: {output}")
-
 
 if __name__ == "__main__":
     SnippingTool()

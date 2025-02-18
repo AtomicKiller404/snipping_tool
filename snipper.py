@@ -19,15 +19,24 @@ class SnippingTool:
         self.coords = []
         self.resize_handle_size = 10
 
-        for monitor in self.monitors:
-            self.create_overlay(monitor)
+        mx = min(monitor.x for monitor in get_monitors())
+        my = min(monitor.y for monitor in get_monitors()) 
+        mh = sum(monitor.height for monitor in get_monitors())
+        mw = sum(monitor.width for monitor in get_monitors())
+
+        self.create_overlay(mx, my, mh, mw)
+
+        # for monitor in self.monitors:
+        #     self.create_overlay(monitor)
 
         self.root.mainloop()
 
-    def create_overlay(self, monitor):
+    # def create_overlay(self, monitor):
+    def create_overlay(self, mx, my, mh, mw):
         """Creates a fullscreen overlay"""
         overlay = tk.Toplevel(self.root)
-        overlay.geometry(f"{monitor.width}x{monitor.height}+{monitor.x}+{monitor.y}")
+        # overlay.geometry(f"{monitor.width}x{monitor.height}+{monitor.x}+{monitor.y}")
+        overlay.geometry(f"{mw}x{mh}+{mx}+{my}")
         overlay.attributes("-topmost", True)
         overlay.attributes("-alpha", 0.3)
         overlay.config(bg="black")
@@ -53,7 +62,7 @@ class SnippingTool:
                     outline="white", width=2,
                     fill="white"
                 )
-                self.active_monitor = monitor  # Store which monitor is used
+                # self.active_monitor = monitor  # Store which monitor is used
                 self.active_rect = rect
                 self.created = True
                 self.coords = [self.start_x, self.start_y, self.start_x, self.start_y]
@@ -108,27 +117,30 @@ class SnippingTool:
         self.root.quit()
 
     def take_screenshot(self):
-        """Captures the selected screen area and saves the image"""
-        if not self.coords or not self.active_monitor:
-            print("No valid selection.")
+        """Captures the selected screen area and saves the image."""
+        if not self.coords or len(self.coords) < 4:
+            print("No valid selection area.")
             return
 
         sx, sy, ex, ey = self.coords
         x1, y1 = min(sx, ex), min(sy, ey)
         x2, y2 = max(sx, ex), max(sy, ey)
 
-        # Adjust coordinates based on the active monitor
-        x1 += self.active_monitor.x
-        y1 += self.active_monitor.y
-        x2 += self.active_monitor.x
-        y2 += self.active_monitor.y
+        # Adjust to absolute screen coordinates
+        mx = min(m.x for m in self.monitors)  # Leftmost monitor x
+        my = min(m.y for m in self.monitors)  # Topmost monitor y
+        x1 += mx
+        y1 += my
+        x2 += mx
+        y2 += my
 
         with mss.mss() as sct:
-            monitor = {"top": int(y1), "left": int(x1), "width": int(x2-x1), "height": int(y2-y1)}
+            monitor = {"top": int(y1), "left": int(x1), "width": int(x2 - x1), "height": int(y2 - y1)}
             output = "screenshot.png"
             sct_img = sct.grab(monitor)
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
             print(f"Screenshot saved: {output}")
+
 
 if __name__ == "__main__":
     SnippingTool()

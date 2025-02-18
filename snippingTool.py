@@ -1,6 +1,7 @@
 import tkinter as tk
 import mss.tools
 from screeninfo import get_monitors
+from datetime import datetime
 
 class SnippingTool:
     def __init__(self):
@@ -127,10 +128,8 @@ class SnippingTool:
 
         with mss.mss() as sct:
             monitor = {"top": int(y1), "left": int(x1), "width": int(x2 - x1), "height": int(y2 - y1)}
-            output = "screenshot.png"
+            now = datetime.now()               
+            output = f"screenshot_{now.year}_{now.month}_{now.day}_{now.hour}_{now.minute}_{now.second}.png"
             sct_img = sct.grab(monitor)
             mss.tools.to_png(sct_img.rgb, sct_img.size, output=output)
             print(f"Screenshot saved: {output}")
-
-if __name__ == "__main__":
-    SnippingTool()
